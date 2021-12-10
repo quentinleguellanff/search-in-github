@@ -11,6 +11,22 @@ datasource db {
 }
 
 model User {
-  id       String @id @default(uuid())
-  username String @unique
+  id                String @id @default(uuid())
+  username          String @unique
+  name              String?
+  avatar_url        String?
+  html_url          String
+  bio               String?
+  company           String?
+  blog              String?
+  location          String?
+  email             String?
+  hireable          Boolean?
+  twitter_username  String?
+  public_repos      Int
+  public_gists      Int
+  followers         Int
+  following         Int
+  created_at        DateTime
+  updated_at        DateTime?
 }
