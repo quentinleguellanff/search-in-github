@@ -1,50 +1,78 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, StyleSheet, Text, View, SafeAreaView, TextInput, Button, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import { ScrollView, ActivityIndicator, Image, StyleSheet, Text, View, SafeAreaView, TextInput, Button, Keyboard, TouchableWithoutFeedback, FlatList } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 
 
 export default function App() {
   
-  const [isLoading, setLoading] = useState(true);
+  const [isUserLoading, setUserLoading] = useState(true);
+  const [isReposLoading, setReposLoading] = useState(true);
   const [username, setUsername] = useState('quentinleguellanff')
-  const [data, setData] = useState([]);
+  const [repos, setRepos] = useState([])
+  const [userData, setUserData] = useState([]);
+  const [reposData, setReposData] = useState([]);
   
-  const fetchUSer = async (username) => {
+  const fetchUser = async (username) => {
     try {
       /*const { NGROK_URL } = process.env;
       const response = await fetch(`${NGROK_URL}/api/users/${username}`);*/
       const response = await fetch(`http://4da5-2a01-e0a-2c-3330-79dc-606-673c-bad8.ngrok.io/api/users/${username}`);
       const json = await response.json();
       if(json.user) {
-        setData(json.user);
+        setUserData(json.user);
+        fetchRepos(json.user.username)
       }
       else{
-        setData(json)
+        setUserData(json)
       }
     } catch (error) {
       console.error(error);
     } finally {
-      setLoading(false);
+      setUserLoading(false);
+    }
+  }
+
+  const fetchRepos = async (username) => {
+    try {
+      const response = await fetch(`http://4da5-2a01-e0a-2c-3330-79dc-606-673c-bad8.ngrok.io/api/users/${username}/repos`);
+      const json = await response.json();
+      if(json.repos){
+          setReposData(json.repos)
+      }
+      else{
+        setReposData(json)
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setReposLoading(false);
     }
   }
 
   async function search() {
     try {
-      const response = await fetchUSer(username)
-      const user = await response.json();
-      setUser(user);
+      const responseUser = await fetchUser(username)
+      if(responseUser){
+        const user = await responseUser.json();
+        setUser(user);
+      }
+      const responseRepos = await fetchRepos(username)
+      if(responseRepos){
+        const repos = await responseRepos.json();
+        setRepos(repos)
+      }
     } catch (error) {
-      console.log(error.message);
+      console.log(error);
     }
   }
 
   useEffect(() => {
-    fetchUSer('quentinleguellanff');
+    fetchUser('quentinleguellanff');
+    fetchRepos('quentinleguellanff');
   },[]);
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
       <SafeAreaView style={styles.container}>
           <View style={styles.textAndButton}>
             <TextInput
@@ -53,38 +81,54 @@ export default function App() {
               onChangeText={setUsername}
               returnKeyType="search"
               onSubmitEditing={search}
+              autoCorrect={false}
             />
             <Button 
             title="Search"
             onPress={search}
             />
           </View>
-          {data.message ? <View style={styles.userContainer}><Text style={{fontSize:16}}>{data.message}</Text></View> : (
+          {userData.message ? <View style={styles.userContainer}><Text style={{fontSize:16}}>{userData.message}</Text></View> : (
             <View style={styles.userContainer}>
-              {isLoading ? <ActivityIndicator/> : (
+              {isUserLoading ? <ActivityIndicator/> : (
                 <View>
                   <View style={styles.userHeader}>
                       <Image
                         style={styles.avatar}
-                        source={{uri : data.avatar_url}}
+                        source={{uri : userData.avatar_url}}
                       />
                     <View>
-                      <Text style={ styles.title }>{data.name}</Text>
-                      <Text style={ styles.login }>{data.username}</Text>
+                      <Text style={ styles.title }>{userData.name}</Text>
+                      <Text style={ styles.login }>{userData.username}</Text>
                     </View>
                   </View>
-                    <Text> {data.bio} </Text>
-                    <Text style={styles.text}> {data.email} </Text>
-                    <Text style={styles.text}><Icon name="people-outline" size={20} /> {data.followers} followers - {data.following} following</Text>
-                    <Text style={ styles.repos }> Repositories <Text style={{backgroundColor: "lightgrey"}}> {data.public_repos} </Text>
-                    </Text>
+                  <View style={{flex: 30}}>
+                    <Text> {userData.bio} </Text>
+                    <Text style={styles.text}> {userData.email} </Text>
+                    <Text style={styles.text}><Icon name="people-outline" size={20} /> {userData.followers} followers - {userData.following} following</Text>
+                    <Text style={ styles.repos }> Repositories <Text style={{backgroundColor: "lightgrey"}}> {userData.public_repos} </Text></Text>
+                  
+                      {isReposLoading ? <ActivityIndicator/> : (
+                          <FlatList
+                          style={styles.reposList}
+                          data={reposData}
+                          keyExtractor={({ id }) => id}
+                          renderItem={({ item }) => (
+                            <View style={styles.repoRowContainer}>
+                            <Text style={{fontSize: 22, color: '#7075db', fontWeight: 'bold'}}> {item.name} <Text style={styles.visibility}> {item.visibility} </Text></Text>
+                            <Text style={{fontStyle:'italic', paddingTop: 5, paddingBottom: 5}}> {item.description}</Text>
+                            <Text style={{fontSize: 14}}><Icon name="ellipse" color="#ede321" /> {item.language} <Text style={{fontSize: 10}}>last update {item.updated_at}</Text></Text>
+                            </View>
+                          )}
+                        />
+                      )}
+                  </View>
                 </View>
                 )}
             </View> 
           )}
         <StatusBar style="auto" />
       </SafeAreaView>
-    </TouchableWithoutFeedback>
   );
 }
 
@@ -121,16 +165,27 @@ const styles = StyleSheet.create({
   userHeader: {
     flexDirection: 'row',
     alignItems: "center",
-    justifyContent: 'flex-start'
+    justifyContent: 'flex-start',
   },
   repos: {
-    flex: 1,
     textAlign: 'center',
     padding: 10,
-    fontSize: 22
+    fontSize: 22,
   },
   text: {
     fontSize: 16,
     padding: 5
   },
+  reposList: {
+    flex: 1,
+  },
+  repoRowContainer: {
+    padding: 5,
+    margin: 5
+  },
+  visibility: {
+    fontSize: 14, 
+    color: 'black', 
+    fontWeight: 'normal',
+  }
 });
